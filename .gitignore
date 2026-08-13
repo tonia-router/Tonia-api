@@ -1,5 +1,4 @@
-# Public contract repo. Keep generated clients, regen, and secret-scan
-# scripts local — they assume the tonia-router monorepo layout.
+# Local secret-scan and leftover regen scripts — not published.
 __pycache__/
 *.pyc
 .DS_Store

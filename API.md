@@ -1,8 +1,6 @@
 # tonia Pass API
 
-OpenAPI contract for the official tonia Pass SDKs.
-
-Source: [`public.openapi.yaml`](public.openapi.yaml).
+Developer API for the official tonia Pass SDKs.
 
 ## Servers
 
