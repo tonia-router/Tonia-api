@@ -4,690 +4,647 @@ info:
   version: 0.1.0
   summary: OpenAPI contract for the official tonia Pass SDKs.
   description: |
-    Developer API for Pass (`https://pass.tonia.ca`).
+    Developer API for Pass (`https://pass.tonia.ca:8443`).
 
     **Tags → auth**
     - `public` — unauthenticated catalogue / models / status
     - `runtime` — `tonia_*` Bearer or `x-api-key` (Bearer wins if both)
-    - `member_runtime` — member-bound `app_session` + `chat_history` entitlement
 
     Chat, messages, embeddings, images, responses, rerank, and interactions
     request bodies stay upstream-shaped. Official SDKs add auth, base URL,
     typed errors, and named helpers.
 
     **Supported path prefixes** for raw SDK requests:
-    `/v1/public/`, `/v1/status`, `/v1/models`, `/v1/conversations`,
+    `/v1/public/`, `/v1/status`, `/v1/models`,
     `/v1/chat/`, `/v1/messages`, `/v1/embeddings`, `/v1/images/`,
     `/v1/responses`, `/v1/rerank`, `/v1/interactions`.
     Other paths are not supported.
 
-    Organization settings, billing, member invites, and API-key management
+    Workspace settings, billing, member invites, and API-key management
     are handled in the tonia portal — not in this API.
 
     Content redaction is a portal profile mode (`dlp_mode: "redact"`), not an
     SDK header or retry flag.
+
+    Official SDKs do not auto-retry. Honor `error.retryable` and `Retry-After`.
+    Admission 429 (`rate_limit_error` / `admission_rate_limited`) is refused
+    immediately — it is not queued. Per-key RPM defaults to 600. In-flight
+    concurrency is a separate limit; a streaming call holds a slot until the
+    stream ends. Monthly quota 429 is `entitlement_error` /
+    `request_quota_exhausted`. Budget exhaustion is 402 `entitlement_error`
+    and is not retryable.
+
+    Server-side chat history (`/v1/conversations*`) is chat-app only and is
+    not part of the public SDK contract.
   contact:
     name: tonia
     url: https://tonia.ca
   license:
-    name: Proprietary
-    url: https://tonia.ca
-
+    name: Apache 2.0
+    identifier: Apache-2.0
 servers:
-  - url: https://pass.tonia.ca
-    description: Production Pass
-  - url: http://127.0.0.1:8444
-    description: Local development
-
+- url: https://pass.tonia.ca:8443
+  description: Production Pass
+- url: http://127.0.0.1:8444
+  description: Local development
 tags:
-  - name: public
-    description: Unauthenticated commercial catalogue, Managed model SKUs, status
-  - name: runtime
-    description: Authenticated model discovery + LLM helpers
-  - name: member_runtime
-    description: Server-side chat history (app_session + chat_history entitlement)
-
+- name: public
+  description: Unauthenticated commercial catalogue, Managed model SKUs, status
+- name: runtime
+  description: Authenticated model discovery + LLM helpers
 paths:
   /v1/public/catalogue:
     get:
-      tags: [public]
+      tags:
+      - public
       operationId: catalogueList
       summary: Commercial tier / offer catalogue
-      description: |
-        Unauthenticated commercial catalogue (Stripe products, public active
+      description: 'Unauthenticated commercial catalogue (Stripe products, public active
+
         offers, entitlement templates). Not a model SKU list — use
+
         `/v1/public/models` for Managed SKUs.
+
+        '
       responses:
-        "200":
+        '200':
           description: Catalogue snapshot
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicCatalogue"
-
+                $ref: '#/components/schemas/PublicCatalogue'
   /v1/public/models:
     get:
-      tags: [public]
+      tags:
+      - public
       operationId: publicModelsList
       summary: Public Managed model SKU list
       responses:
-        "200":
+        '200':
           description: List of public model details
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicModelList"
-
+                $ref: '#/components/schemas/PublicModelList'
   /v1/public/models/{id}:
     get:
-      tags: [public]
+      tags:
+      - public
       operationId: publicModelsGet
       summary: Public Managed model SKU detail
       parameters:
-        - $ref: "#/components/parameters/ModelId"
+      - $ref: '#/components/parameters/ModelId'
       responses:
-        "200":
+        '200':
           description: Public model detail (may include telemetry enrichment)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicModelDetail"
-        "404":
+                $ref: '#/components/schemas/PublicModelDetail'
+        '404':
           description: Flat string error (not structured taxonomy)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicNotFoundError"
-
+                $ref: '#/components/schemas/PublicNotFoundError'
   /v1/public/model-categories:
     get:
-      tags: [public]
+      tags:
+      - public
       operationId: publicModelCategoriesList
       summary: Category labels for the public model catalogue
       responses:
-        "200":
+        '200':
           description: Active category definitions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicModelCategoryList"
-
+                $ref: '#/components/schemas/PublicModelCategoryList'
   /v1/status:
     get:
-      tags: [public]
+      tags:
+      - public
       operationId: statusGet
       summary: Public service health aggregation
       responses:
-        "200":
+        '200':
           description: Aggregated status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicStatus"
-
+                $ref: '#/components/schemas/PublicStatus'
   /v1/models:
     get:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: modelsList
       summary: Runtime model discovery for the calling key
-      description: |
-        Authenticated list scoped to what the key/tenant may call.
+      description: 'Authenticated list scoped to what the key/tenant may call.
+
         Header shape affects list presentation (`x-api-key` only → Anthropic-
+
         shaped ids; Bearer → OpenAI-shaped). Optional `reasoning` descriptor
+
         when the model declares efforts.
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       responses:
-        "200":
+        '200':
           description: Runtime model list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuntimeModelList"
+                $ref: '#/components/schemas/RuntimeModelList'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/models/{id}:
     get:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: modelsGet
       summary: Runtime model retrieve
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/ModelId"
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       responses:
-        "200":
+        '200':
           description: Single runtime model entry
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuntimeModel"
-        "404":
-          $ref: "#/components/responses/RuntimeError"
+                $ref: '#/components/schemas/RuntimeModel'
+        '404':
+          $ref: '#/components/responses/RuntimeError'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/chat/completions:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: chatCompletionsCreate
       summary: OpenAI-shaped chat completions
-      description: |
-        Upstream-shaped body. Prefer `Authorization: Bearer`. May return HTTP
+      description: 'Upstream-shaped body. Prefer `Authorization: Bearer`. May return HTTP
+
         200 with `_tonia_policy_block` or `_tonia_entitlement_block` carriers —
+
         HTTP 200 may still include `_tonia_policy_block` or `_tonia_entitlement_block`
+
         — treat those as errors. Soft-limit headers `x-tonia-limit-*` may appear
+
         on success. Top-level `reasoning_effort` is accepted when present; Pass
-        clamps it to the model's declared set.
+
+        clamps it to the model''s declared set.
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native completion, or chat_200 block carrier
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
             x-tonia-policy-block:
-              $ref: "#/components/headers/XToniaPolicyBlock"
+              $ref: '#/components/headers/XToniaPolicyBlock'
+            x-tonia-policy-categories:
+              $ref: '#/components/headers/XToniaPolicyCategories'
             x-tonia-entitlement-block:
-              $ref: "#/components/headers/XToniaEntitlementBlock"
+              $ref: '#/components/headers/XToniaEntitlementBlock'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughOrBlockResponse"
+                $ref: '#/components/schemas/PassthroughOrBlockResponse'
             text/event-stream:
               schema:
                 type: string
                 description: SSE stream (OpenAI chunk envelopes; Cohere may be reshaped)
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/messages:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: messagesCreate
       summary: Anthropic-shaped messages
       description: Prefer `x-api-key`. Same chat_200 carrier / soft-limit rules as chat.
       security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
+      - ApiKeyAuth: []
+      - BearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native message, or chat_200 block carrier
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
             x-tonia-policy-block:
-              $ref: "#/components/headers/XToniaPolicyBlock"
+              $ref: '#/components/headers/XToniaPolicyBlock'
+            x-tonia-policy-categories:
+              $ref: '#/components/headers/XToniaPolicyCategories'
             x-tonia-entitlement-block:
-              $ref: "#/components/headers/XToniaEntitlementBlock"
+              $ref: '#/components/headers/XToniaEntitlementBlock'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughOrBlockResponse"
+                $ref: '#/components/schemas/PassthroughOrBlockResponse'
             text/event-stream:
               schema:
                 type: string
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/embeddings:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: embeddingsCreate
       summary: OpenAI-shaped embeddings
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native embeddings response
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughResponse"
+                $ref: '#/components/schemas/PassthroughResponse'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/images/generations:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: imagesGenerate
       summary: OpenAI-shaped image generations
-      description: Policy/entitlement denials on this surface are always hard HTTP (no chat_200).
+      description: 'openai / xAI / StepFun only. Gemini image SKUs return HTTP 400
+
+        `provider_requires_surface` (`required_surface: interactions`) — use
+
+        `POST /v1/interactions`. Policy/entitlement denials are always hard HTTP
+
+        (no chat_200).
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native image response
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughResponse"
+                $ref: '#/components/schemas/PassthroughResponse'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/images/edits:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: imagesEdit
       summary: OpenAI-shaped image edits
-      description: |
-        Pass may rebuild JSON→multipart before upstream. Policy/entitlement
-        denials are always hard HTTP on this surface.
+      description: 'openai / xAI / StepFun only. Pass may rebuild JSON→multipart
+
+        before upstream. Gemini image SKUs return HTTP 400 `provider_requires_surface`
+
+        (`required_surface: interactions`) — use `POST /v1/interactions` with
+
+        multimodal `input` parts. Policy/entitlement denials are always hard HTTP.
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native image edit response
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughResponse"
+                $ref: '#/components/schemas/PassthroughResponse'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/responses:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: responsesCreate
       summary: OpenAI Responses API
-      description: |
-        WebSocket upgrade on this path is refused with JSON HTTP 426
+      description: 'WebSocket upgrade on this path is refused with JSON HTTP 426
+
         (`websocket_upgrade_unsupported`). Use HTTPS POST with `stream: true`
+
         for SSE.
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native Responses body, or chat_200 block carrier
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
             x-tonia-policy-block:
-              $ref: "#/components/headers/XToniaPolicyBlock"
+              $ref: '#/components/headers/XToniaPolicyBlock'
+            x-tonia-policy-categories:
+              $ref: '#/components/headers/XToniaPolicyCategories'
             x-tonia-entitlement-block:
-              $ref: "#/components/headers/XToniaEntitlementBlock"
+              $ref: '#/components/headers/XToniaEntitlementBlock'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughOrBlockResponse"
+                $ref: '#/components/schemas/PassthroughOrBlockResponse'
             text/event-stream:
               schema:
                 type: string
-        "426":
+        '426':
           description: WebSocket upgrade refused (JSON body)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredErrorEnvelope"
+                $ref: '#/components/schemas/StructuredErrorEnvelope'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/rerank:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: rerankCreate
       summary: Cohere-shaped rerank
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native rerank response
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughResponse"
+                $ref: '#/components/schemas/PassthroughResponse'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
+          $ref: '#/components/responses/RuntimeError'
   /v1/interactions:
     post:
-      tags: [runtime]
+      tags:
+      - runtime
       operationId: interactionsCreate
       summary: Gemini-shaped interactions
+      description: 'Gemini text and image SKUs. Image generate: `{model, input: "<prompt>",
+
+        stream: false}`. Image edit: `input` is `[{type: text, text}, {type: image,
+
+        mime_type, data}]` (`data` is raw base64, not a data URL). Response is native
+
+        `interaction.steps`; output images are `model_output` parts with `type: image`
+
+        or `mime_type` starting with `image/`. Do not call `/v1/images/*` or
+
+        `/v1/chat/completions` for Gemini image SKUs.
+
+        '
       security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
+      - BearerAuth: []
+      - ApiKeyAuth: []
       parameters:
-        - $ref: "#/components/parameters/HttpReferer"
-        - $ref: "#/components/parameters/XToniaTitle"
-        - $ref: "#/components/parameters/XToniaCategories"
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PassthroughRequest"
+              $ref: '#/components/schemas/PassthroughRequest'
       responses:
-        "200":
+        '200':
           description: Provider-native interactions response
           headers:
             x-tonia-limit-warning:
-              $ref: "#/components/headers/XToniaLimitWarning"
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PassthroughResponse"
+                $ref: '#/components/schemas/PassthroughResponse'
         default:
-          $ref: "#/components/responses/RuntimeError"
-
-  /v1/conversations:
-    get:
-      tags: [member_runtime]
-      operationId: conversationsList
-      summary: List conversations
-      description: Requires member-bound `app_session` key and `chat_history` entitlement.
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      parameters:
-        - name: archived
-          in: query
-          schema:
-            type: integer
-            enum: [1]
-          description: When `1`, list archived conversations
-      responses:
-        "200":
-          description: Conversation summaries
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConversationList"
-        default:
-          $ref: "#/components/responses/ConversationsError"
-    post:
-      tags: [member_runtime]
-      operationId: conversationsCreate
-      summary: Create conversation
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConversationCreateRequest"
-      responses:
-        "201":
-          description: Created conversation summary
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConversationSummary"
-        default:
-          $ref: "#/components/responses/ConversationsError"
-    delete:
-      tags: [member_runtime]
-      operationId: conversationsDeleteHistory
-      summary: Bulk-delete all conversations for the member
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      responses:
-        "200":
-          description: Bulk delete result
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [deleted_conversations]
-                properties:
-                  deleted_conversations:
-                    type: integer
-        default:
-          $ref: "#/components/responses/ConversationsError"
-
-  /v1/conversations/export:
-    get:
-      tags: [member_runtime]
-      operationId: conversationsExport
-      summary: Loi 25 conversation export
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      responses:
-        "200":
-          description: Export payload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConversationExport"
-        default:
-          $ref: "#/components/responses/ConversationsError"
-
-  /v1/conversations/{conversation_id}:
-    get:
-      tags: [member_runtime]
-      operationId: conversationsGet
-      summary: Get conversation with messages
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ConversationId"
-      responses:
-        "200":
-          description: Conversation detail
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConversationDetail"
-        default:
-          $ref: "#/components/responses/ConversationsError"
-    patch:
-      tags: [member_runtime]
-      operationId: conversationsUpdate
-      summary: Archive / unarchive conversation
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ConversationId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [archived]
-              properties:
-                archived:
-                  type: boolean
-      responses:
-        "200":
-          description: Updated summary
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConversationSummary"
-        default:
-          $ref: "#/components/responses/ConversationsError"
-    delete:
-      tags: [member_runtime]
-      operationId: conversationsDelete
-      summary: Delete one conversation
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ConversationId"
-      responses:
-        "200":
-          description: Deleted
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [deleted]
-                properties:
-                  deleted:
-                    type: boolean
-                    const: true
-        default:
-          $ref: "#/components/responses/ConversationsError"
-
-  /v1/conversations/{conversation_id}/messages:
-    post:
-      tags: [member_runtime]
-      operationId: conversationsAppend
-      summary: Append messages to a conversation
-      description: DLP/media denials always return hard HTTP 451 (no chat_200).
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ConversationId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConversationAppendRequest"
-      responses:
-        "200":
-          description: Append result
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [conversation_id, message_count]
-                properties:
-                  conversation_id:
-                    type: string
-                  message_count:
-                    type: integer
-        default:
-          $ref: "#/components/responses/ConversationsError"
-
+          $ref: '#/components/responses/RuntimeError'
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: tonia_*
-      description: |
-        `Authorization: Bearer tonia_*`. Wins over `x-api-key` when both are
+      description: '`Authorization: Bearer tonia_*`. Wins over `x-api-key` when both are
+
         sent. Prefer for OpenAI-shaped helpers.
+
+        '
     ApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
-      description: |
-        `x-api-key: tonia_*`. Prefer for Anthropic-shaped `/v1/messages`.
+      description: '`x-api-key: tonia_*`. Prefer for Anthropic-shaped `/v1/messages`.
+
         Ignored for auth lookup when `Authorization` is also present.
 
+        '
   parameters:
     ModelId:
       name: id
-      in: path
-      required: true
-      schema:
-        type: string
-    ConversationId:
-      name: conversation_id
       in: path
       required: true
       schema:
@@ -713,47 +670,78 @@ components:
       schema:
         type: string
       description: Optional comma-separated categories (max 8). Alias `X-OpenRouter-Categories`.
-
   headers:
+    RetryAfter:
+      description: Seconds to wait before retrying when `error.retryable` is true.
+      schema:
+        type: integer
+        minimum: 0
     XToniaLimitWarning:
       description: Soft-limit warning present when usage ≥ 80% of quota/budget
       schema:
         type: string
         example: usage_limit_80_percent
+    XToniaLimitScope:
+      description: Soft-limit scope. Wire values are `member` or `organization` (`organization` means the Workspace).
+      schema:
+        type: string
+    XToniaLimitKind:
+      description: Soft-limit kind (`requests`, `managed_budget`, or `member_budget`)
+      schema:
+        type: string
+    XToniaLimitUsed:
+      description: Current usage (request count or CAD cents)
+      schema:
+        type: string
+    XToniaLimitValue:
+      description: Limit value (request count or CAD cents)
+      schema:
+        type: string
+    XToniaLimitRemaining:
+      description: Remaining quota or budget
+      schema:
+        type: string
+    XToniaLimitPeriodEndsAt:
+      description: Period end as ISO-8601 UTC
+      schema:
+        type: string
     XToniaPolicyBlock:
       description: Present on chat_200 policy blocks
+      schema:
+        type: string
+    XToniaPolicyCategories:
+      description: Comma-separated DLP categories on chat_200 policy blocks
       schema:
         type: string
     XToniaEntitlementBlock:
       description: Present on chat_200 entitlement blocks
       schema:
         type: string
-
   responses:
     RuntimeError:
-      description: Structured runtime error
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/StructuredErrorEnvelope"
-    ConversationsError:
-      description: |
-        Conversations family error. No `retryable` field. Auth-missing body
-        is type-only (no `code`). Policy denials are always hard 451 with a
-        thinner body than runtime.
-      content:
-        application/json:
-          schema:
-            oneOf:
-              - $ref: "#/components/schemas/ConversationsAuthError"
-              - $ref: "#/components/schemas/ConversationsStructuredError"
-              - $ref: "#/components/schemas/ConversationsPolicyError"
+      description: 'Structured runtime error. Admission 429 is `type: rate_limit_error`,
 
+        `code: admission_rate_limited`. Monthly quota 429 is `type: entitlement_error`,
+
+        `code: request_quota_exhausted`. Budget exhaustion is 402 `entitlement_error`
+
+        and is not retryable.
+
+        '
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StructuredErrorEnvelope'
   schemas:
     ReasoningDescriptor:
       type: object
       description: tonia-native per-model reasoning effort descriptor
-      required: [efforts, default]
+      required:
+      - efforts
+      - default
       properties:
         efforts:
           type: array
@@ -763,10 +751,73 @@ components:
         default:
           type: string
           description: Default effort when the client omits reasoning_effort
-
+    PublicChannel:
+      type: object
+      description: >
+        Counterparty and availability for a public Managed SKU. Not a string.
+        `amazon_bedrock` is BYOK-only (`managed_available: false`).
+      required:
+      - managed_available
+      - byok_available
+      - roster_group
+      - jurisdiction
+      - wire
+      - counterparty
+      properties:
+        managed_available:
+          type: boolean
+        byok_available:
+          type: boolean
+        roster_group:
+          type: string
+        jurisdiction:
+          type: string
+        wire:
+          type: string
+        counterparty:
+          type: string
+          enum:
+          - direct_lab
+          - alibaba_model_studio
+          - aws_bedrock_byok
+    EntitlementTemplate:
+      type: object
+      description: Plan flags and pack sizes on a public catalogue offer
+      required:
+      - seats_per_pack
+      - request_quota_per_pack
+      - managed_budget_cents
+      - managed_credit_cents
+      - media_guard
+      - team_management
+      - on_prem
+      - image_generation
+      - chat_included
+      properties:
+        seats_per_pack:
+          type: integer
+        request_quota_per_pack:
+          type: integer
+        managed_budget_cents:
+          type: integer
+        managed_credit_cents:
+          type: integer
+        media_guard:
+          type: boolean
+        team_management:
+          type: boolean
+        on_prem:
+          type: boolean
+        image_generation:
+          type: boolean
+        chat_included:
+          type: boolean
     PublicCatalogue:
       type: object
-      required: [catalogue_version, catalogue_hash, products]
+      required:
+      - catalogue_version
+      - catalogue_hash
+      - products
       properties:
         catalogue_version:
           type: string
@@ -775,11 +826,14 @@ components:
         products:
           type: array
           items:
-            $ref: "#/components/schemas/CatalogueProduct"
-
+            $ref: '#/components/schemas/CatalogueProduct'
     CatalogueProduct:
       type: object
-      required: [product_id, label, stripe_product_lookup_key, offers]
+      required:
+      - product_id
+      - label
+      - stripe_product_lookup_key
+      - offers
       properties:
         product_id:
           type: string
@@ -790,21 +844,20 @@ components:
         offers:
           type: array
           items:
-            $ref: "#/components/schemas/CatalogueOffer"
-
+            $ref: '#/components/schemas/CatalogueOffer'
     CatalogueOffer:
       type: object
       required:
-        - offer_id
-        - product_id
-        - status
-        - label
-        - credential_mode
-        - public
-        - trial
-        - entitlement_template
-        - components
-        - discounts
+      - offer_id
+      - product_id
+      - status
+      - label
+      - credential_mode
+      - public
+      - trial
+      - entitlement_template
+      - components
+      - discounts
       properties:
         offer_id:
           type: string
@@ -822,8 +875,7 @@ components:
           type: object
           additionalProperties: true
         entitlement_template:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/EntitlementTemplate'
         components:
           type: array
           items:
@@ -836,10 +888,11 @@ components:
           type: array
           items:
             type: integer
-
     PublicModelList:
       type: object
-      required: [object, data]
+      required:
+      - object
+      - data
       properties:
         object:
           type: string
@@ -847,21 +900,20 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/PublicModelDetail"
-
+            $ref: '#/components/schemas/PublicModelDetail'
     PublicModelDetail:
       type: object
       required:
-        - id
-        - provider
-        - display_name
-        - object
-        - categories
-        - capabilities
-        - supported_parameters
-        - channel
-        - pricing
-        - status_component
+      - id
+      - provider
+      - display_name
+      - object
+      - categories
+      - capabilities
+      - supported_parameters
+      - channel
+      - pricing
+      - status_component
       properties:
         id:
           type: string
@@ -885,11 +937,17 @@ components:
           items:
             type: string
         context_length:
-          type: ["integer", "null"]
+          type:
+          - integer
+          - 'null'
         release_date:
-          type: ["string", "null"]
+          type:
+          - string
+          - 'null'
         modalities:
-          type: ["object", "null"]
+          type:
+          - object
+          - 'null'
           additionalProperties: true
         capabilities:
           type: array
@@ -900,30 +958,39 @@ components:
           items:
             type: string
         channel:
-          type: string
+          $ref: '#/components/schemas/PublicChannel'
         status_component:
           type: string
         reasoning:
-          $ref: "#/components/schemas/ReasoningDescriptor"
+          $ref: '#/components/schemas/ReasoningDescriptor'
         pricing:
           type: object
           additionalProperties: true
         performance:
-          type: ["object", "null"]
+          type:
+          - object
+          - 'null'
           additionalProperties: true
         uptime:
-          type: ["object", "null"]
+          type:
+          - object
+          - 'null'
           additionalProperties: true
         activity:
-          type: ["object", "null"]
+          type:
+          - object
+          - 'null'
           additionalProperties: true
         tools:
-          type: ["object", "null"]
+          type:
+          - object
+          - 'null'
           additionalProperties: true
-
     PublicModelCategoryList:
       type: object
-      required: [object, data]
+      required:
+      - object
+      - data
       properties:
         object:
           type: string
@@ -932,7 +999,12 @@ components:
           type: array
           items:
             type: object
-            required: [id, label_en, label_fr, sort_order, tone]
+            required:
+            - id
+            - label_en
+            - label_fr
+            - sort_order
+            - tone
             properties:
               id:
                 type: string
@@ -944,25 +1016,32 @@ components:
                 type: integer
               tone:
                 type: string
-
     PublicNotFoundError:
       type: object
-      required: [error]
+      required:
+      - error
       properties:
         error:
           type: string
           const: not_found
-
     PublicStatus:
       type: object
-      required: [service, status, checked_at, components]
+      required:
+      - service
+      - status
+      - checked_at
+      - components
       properties:
         service:
           type: string
           example: tonia-pass
         status:
           type: string
-          enum: [operational, degraded, outage, not_configured]
+          enum:
+          - operational
+          - degraded
+          - outage
+          - not_configured
         checked_at:
           type: string
           format: date-time
@@ -970,23 +1049,33 @@ components:
           type: array
           items:
             type: object
-            required: [name, status, detail, checked_at, public]
+            required:
+            - name
+            - status
+            - detail
+            - checked_at
+            - public
             properties:
               name:
                 type: string
               status:
                 type: string
-                enum: [operational, degraded, outage, not_configured]
+                enum:
+                - operational
+                - degraded
+                - outage
+                - not_configured
               detail:
                 type: string
               checked_at:
                 type: string
               public:
                 type: boolean
-
     RuntimeModelList:
       type: object
-      required: [object, data]
+      required:
+      - object
+      - data
       properties:
         object:
           type: string
@@ -994,11 +1083,14 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/RuntimeModel"
-
+            $ref: '#/components/schemas/RuntimeModel'
     RuntimeModel:
       type: object
-      required: [id, object, context_length, supported_parameters]
+      required:
+      - id
+      - object
+      - context_length
+      - supported_parameters
       properties:
         id:
           type: string
@@ -1006,7 +1098,9 @@ components:
           type: string
           const: model
         context_length:
-          type: ["integer", "null"]
+          type:
+          - integer
+          - 'null'
         supported_parameters:
           type: array
           items:
@@ -1015,42 +1109,57 @@ components:
           type: array
           items:
             type: string
+          description: >
+            Per-model action flags from the Pass registry (e.g. web_search,
+            reasoning, image_tool, image_generation, image_edit, vision,
+            file_input). Soft flags (vision, file_input) are discovery/badge
+            only — they do not replace tenant envelope attachments. Hard flags
+            (image_edit, image_generation routing) gate wrong-path calls.
+            See PLANS/02-architecture/products/model-discovery.md.
+        modalities:
+          type: object
+          description: >
+            Layer B media shapes `{ input: string[], output: string[] }`
+            (text/image/file/audio). Additive discovery; not a hard gate.
+          additionalProperties: true
         reasoning:
-          $ref: "#/components/schemas/ReasoningDescriptor"
+          $ref: '#/components/schemas/ReasoningDescriptor'
         pricing:
           type: object
           additionalProperties: true
           description: Present for managed-priced models only
-
     PassthroughRequest:
       type: object
-      description: |
-        Upstream-shaped request body. Not re-typed by tonia. May include
-        top-level `reasoning_effort` when present.
-      additionalProperties: true
+      description: 'Upstream-shaped request body. Not re-typed by tonia. May include
 
+        top-level `reasoning_effort` when present.
+
+        '
+      additionalProperties: true
     PassthroughResponse:
       type: object
       description: Upstream-shaped success body
       additionalProperties: true
-
     PassthroughOrBlockResponse:
       type: object
-      description: |
-        Provider-native body. When policy/entitlement blocks render as
+      description: 'Provider-native body. When policy/entitlement blocks render as
+
         chat_200, the same body also carries `_tonia_policy_block` or
+
         `_tonia_entitlement_block` — treat as an error.
+
+        '
       additionalProperties: true
       properties:
         _tonia_policy_block:
-          $ref: "#/components/schemas/PolicyBlockCarrier"
+          $ref: '#/components/schemas/PolicyBlockCarrier'
         _tonia_entitlement_block:
-          $ref: "#/components/schemas/EntitlementBlockCarrier"
-
+          $ref: '#/components/schemas/EntitlementBlockCarrier'
     PolicyBlockCarrier:
       type: object
       description: chat_200 policy block carrier (no retryable)
-      required: [code]
+      required:
+      - code
       properties:
         code:
           type: string
@@ -1080,11 +1189,16 @@ components:
         media:
           type: object
           additionalProperties: true
-
     EntitlementBlockCarrier:
       type: object
       description: chat_200 entitlement block carrier
-      required: [type, code, scope, retryable, message, action]
+      required:
+      - type
+      - code
+      - scope
+      - retryable
+      - message
+      - action
       properties:
         type:
           type: string
@@ -1093,41 +1207,75 @@ components:
           type: string
         scope:
           type: string
-          enum: [member, organization, operator]
+          description: Wire scope. `organization` means the Workspace.
+          enum:
+          - member
+          - organization
+          - operator
         retryable:
           type: boolean
         message:
           type: string
         action:
           type: string
-
     StructuredError:
       type: object
-      required: [type]
+      required:
+      - type
       properties:
         type:
           type: string
           enum:
-            - authentication_error
-            - billing_error
-            - entitlement_error
-            - invalid_request_error
-            - byok_key_missing
-            - policy_block
-            - tenant_upstream_blocked
-            - managed_credential_unavailable
+          - authentication_error
+          - billing_error
+          - entitlement_error
+          - invalid_request_error
+          - byok_key_missing
+          - policy_block
+          - tenant_upstream_blocked
+          - managed_credential_unavailable
+          - rate_limit_error
+          - api_error
         code:
           type: string
         retryable:
           type: boolean
           description: Present on runtime hard errors except policy_block
+        reason:
+          type: string
+          description: 'Present on admission 429 (`code: admission_rate_limited`).
+
+            Why this call was refused. Distinct from monthly quota 429.
+
+            '
+          enum:
+          - rpm_per_key
+          - concurrency_per_key
+          - concurrency_per_tenant
+          - concurrency_global
         scope:
           type: string
-          enum: [member, organization, operator]
+          description: 'Who the limit applies to. Entitlement errors use `member` /
+
+            `organization` / `operator` (`organization` means the Workspace). Admission
+
+            429 uses `key` / `tenant` / `global` (`tenant` means this workspace).
+
+            '
+          enum:
+          - member
+          - organization
+          - operator
+          - key
+          - tenant
+          - global
         message:
           type: string
         provider:
           type: string
+        required_surface:
+          type: string
+          description: Present when `code` is `provider_requires_surface` (e.g. `interactions`).
         detail:
           type: string
         docs:
@@ -1151,166 +1299,10 @@ components:
           type: object
           additionalProperties: true
       additionalProperties: true
-
     StructuredErrorEnvelope:
       type: object
-      required: [error]
-      properties:
-        error:
-          $ref: "#/components/schemas/StructuredError"
-
-    ConversationsAuthError:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [type]
-          properties:
-            type:
-              type: string
-              const: authentication_error
-          description: Thinner than runtime auth — no code, no retryable
-
-    ConversationsStructuredError:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [type, code]
-          properties:
-            type:
-              type: string
-              enum: [invalid_request_error, entitlement_error]
-            code:
-              type: string
-          additionalProperties: false
-
-    ConversationsPolicyError:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [type, code]
-          properties:
-            type:
-              type: string
-              const: policy_block
-            code:
-              type: string
-            law25_article:
-              type: string
-            scope_field:
-              type: string
-            requested:
-              type: string
-            allowed:
-              type: string
-          description: Thinner than runtime policy_block (no detail/efvp/status/dlp/media)
-
-    ConversationSummary:
-      type: object
       required:
-        - conversation_id
-        - title
-        - model
-        - created_at
-        - updated_at
-        - message_count
-        - archived_at
+      - error
       properties:
-        conversation_id:
-          type: string
-        title:
-          type: ["string", "null"]
-        model:
-          type: ["string", "null"]
-        created_at:
-          type: string
-        updated_at:
-          type: string
-        message_count:
-          type: integer
-        archived_at:
-          type: ["string", "null"]
-
-    ConversationList:
-      type: object
-      required: [object, data]
-      properties:
-        object:
-          type: string
-          const: list
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/ConversationSummary"
-
-    ConversationDetail:
-      allOf:
-        - $ref: "#/components/schemas/ConversationSummary"
-        - type: object
-          required: [messages]
-          properties:
-            messages:
-              type: array
-              items:
-                type: object
-                required: [seq, role, content, attachments, created_at]
-                properties:
-                  seq:
-                    type: integer
-                  role:
-                    type: string
-                  content:
-                    type: string
-                  attachments:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                  created_at:
-                    type: string
-
-    ConversationCreateRequest:
-      type: object
-      properties:
-        title:
-          type: string
-        model:
-          type: string
-        messages:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-      additionalProperties: false
-
-    ConversationAppendRequest:
-      type: object
-      required: [messages]
-      properties:
-        messages:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-      additionalProperties: false
-
-    ConversationExport:
-      type: object
-      required: [tenant_id, member_id, exported_at, conversations]
-      properties:
-        tenant_id:
-          type: string
-        member_id:
-          type: string
-        exported_at:
-          type: string
-        conversations:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
+        error:
+          $ref: '#/components/schemas/StructuredError'

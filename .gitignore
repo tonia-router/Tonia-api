@@ -1,4 +1,13 @@
+# Public contract repo. Keep generated clients, regen, and secret-scan
+# scripts local — they assume the tonia-router monorepo layout.
 __pycache__/
 *.pyc
 .DS_Store
 .pytest_cache/
+.codegen-smoke/
+
+check_generated_clients.py
+check_public_secrets.py
+generate.sh
+Makefile
+

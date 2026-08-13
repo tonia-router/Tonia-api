@@ -34,10 +34,6 @@ ALLOWED_PATHS: frozenset[str] = frozenset(
         "/v1/responses",
         "/v1/rerank",
         "/v1/interactions",
-        "/v1/conversations",
-        "/v1/conversations/export",
-        "/v1/conversations/{conversation_id}",
-        "/v1/conversations/{conversation_id}/messages",
     }
 )
 
@@ -45,7 +41,6 @@ ESCAPE_HATCH_PREFIXES: tuple[str, ...] = (
     "/v1/public/",
     "/v1/status",
     "/v1/models",
-    "/v1/conversations",
     "/v1/chat/",
     "/v1/messages",
     "/v1/embeddings",
@@ -131,7 +126,7 @@ def check(spec: dict | None = None) -> list[str]:
             )
 
     tags = {t.get("name") for t in (doc.get("tags") or []) if isinstance(t, dict)}
-    for required in ("public", "runtime", "member_runtime"):
+    for required in ("public", "runtime"):
         if required not in tags:
             problems.append(f"missing tag: {required!r}")
 

@@ -3,39 +3,31 @@
 Public OpenAPI 3.1 contract for [tonia Pass](https://pass.tonia.ca).
 
 This specification is the source of truth for the official SDKs and API
-reference. It covers the developer API: public catalogue and models,
-authenticated runtime calls, and member conversation history.
+reference. It covers the developer API only: unauthenticated catalogue /
+models / status, plus authenticated runtime helpers (chat, messages,
+embeddings, images, responses, rerank, interactions).
 
-Organization settings, billing, and API-key management stay in the
-[tonia portal](https://portal.tonia.ca).
+Workspace settings, billing, and API-key management stay in the
+[tonia portal](https://portal.tonia.ca). Server-side chat history is
+chat-app only — not part of this contract.
 
 ## Files
 
 | Path | Role |
 | --- | --- |
 | `public.openapi.yaml` | OpenAPI 3.1 specification |
-| `API.md` | Markdown API reference (generated) |
+| `API.md` | Markdown API reference |
 | `check_public_openapi.py` | Spec integrity check |
-| `check_public_secrets.py` | Public-tree credential scan |
-| `render_api_reference.py` | Rebuild `API.md` from the OpenAPI spec |
-| `generate.sh` / `Makefile` | Regenerate official SDK clients |
+| `render_api_reference.py` | Rebuild `API.md` from the spec |
+| `LICENSE` / `NOTICE` | Apache 2.0; copyright tonia; keep attribution |
 
 ## Validate
 
 ```bash
 python check_public_openapi.py
-# or: make check
 ```
 
 Requires [PyYAML](https://pyyaml.org/).
-
-## Regenerate SDK clients
-
-```bash
-make generate-sdk
-```
-
-Requires Docker.
 
 ## Related packages
 
@@ -52,3 +44,9 @@ Runtime routes accept either:
 
 If both are sent, Bearer wins. Public catalogue, public models, and
 `/v1/status` need no credentials.
+
+## License
+
+Copyright 2026 tonia. Apache 2.0 — commercial use allowed. Keep the
+copyright notice and `NOTICE` (attribution to tonia, https://tonia.ca)
+if you copy or redistribute this specification.

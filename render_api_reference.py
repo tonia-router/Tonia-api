@@ -85,8 +85,29 @@ def render(spec: dict) -> str:
         "",
         "Most runtime errors use "
         '`{"error": {"type", "code", "retryable"}}`. '
+        "Official SDKs do not auto-retry — honor `retryable` and "
+        "`Retry-After`.",
+        "",
+        "Admission 429 is `type: rate_limit_error`, "
+        "`code: admission_rate_limited`, with `reason` "
+        "(`rpm_per_key` | `concurrency_per_key` | "
+        "`concurrency_per_tenant` | `concurrency_global`) and "
+        "`scope` (`key` | `tenant` | `global`). Pass refuses "
+        "immediately; the call is not queued. Per-key RPM defaults "
+        "to 600. In-flight concurrency is a separate limit; a "
+        "streaming call holds a slot until the stream ends.",
+        "",
+        "Monthly quota 429 is `type: entitlement_error`, "
+        "`code: request_quota_exhausted` (`retryable: true`). "
+        "Budget exhaustion is 402 `entitlement_error` and is not "
+        "retryable. `api_error` / `audit_tip_contention` is 503 "
+        "with `Retry-After: 1`. "
+        "`managed_credential_unavailable` is 503 with "
+        "`Retry-After: 60`.",
+        "",
         "On chat-like routes, HTTP 200 may still carry "
-        "`_tonia_policy_block` or `_tonia_entitlement_block` — treat those as errors.",
+        "`_tonia_policy_block` or `_tonia_entitlement_block` — "
+        "treat those as errors.",
         "",
         "Content redaction is configured in the "
         "[tonia portal](https://portal.tonia.ca).",
