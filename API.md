@@ -1,6 +1,8 @@
 # tonia Pass API
 
-Developer API for the official tonia Pass SDKs.
+OpenAPI contract for the official tonia Pass SDKs.
+
+Source: [`public.openapi.yaml`](public.openapi.yaml).
 
 ## Servers
 
@@ -23,7 +25,7 @@ OpenAI-shaped chat completions
 
 - Tag: `runtime`
 - Auth: required
-- Upstream-shaped body. Prefer `Authorization: Bearer`. May return HTTP 200 with `_tonia_policy_block` or `_tonia_entitlement_block` carriers — HTTP 200 may still include `_tonia_policy_block` or `_tonia_entitlement_block` — treat those as errors. Soft-limit headers `x-tonia-limit-*` may appear on success. Top-level `reasoning_effort` is accepted when present; Pass clamps it to the model's declared set.
+- Upstream-shaped body. Prefer `Authorization: Bearer`. HTTP 200 may still include `_tonia_policy_block` or `_tonia_entitlement_block` — treat those as errors. Soft-limit headers `x-tonia-limit-*` may appear on success. Top-level `reasoning_effort` is accepted when present; Pass clamps it to the model's declared set.
 
 ### `POST /v1/embeddings`
 
@@ -46,7 +48,7 @@ OpenAI-shaped image generations
 
 - Tag: `runtime`
 - Auth: required
-- openai / xAI / StepFun only. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions`. Policy/entitlement denials are always hard HTTP (no chat_200).
+- openai / xAI / StepFun only. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions`. Policy and entitlement denials use hard HTTP status codes, not HTTP 200 bodies.
 
 ### `POST /v1/interactions`
 
@@ -62,7 +64,7 @@ Anthropic-shaped messages
 
 - Tag: `runtime`
 - Auth: required
-- Prefer `x-api-key`. Same chat_200 carrier / soft-limit rules as chat.
+- Prefer `x-api-key`. Same HTTP 200 block-carrier and soft-limit rules as chat.
 
 ### `GET /v1/models`
 
@@ -70,7 +72,7 @@ Runtime model discovery for the calling key
 
 - Tag: `runtime`
 - Auth: required
-- Authenticated list scoped to what the key/tenant may call. Header shape affects list presentation (`x-api-key` only → Anthropic- shaped ids; Bearer → OpenAI-shaped). Optional `reasoning` descriptor when the model declares efforts.
+- Authenticated list scoped to what the key/tenant may call. Header shape affects list presentation (`x-api-key` only → Anthropic-shaped ids; Bearer → OpenAI-shaped). Optional `reasoning` descriptor when the model declares efforts.
 
 ### `GET /v1/models/{id}`
 
@@ -132,7 +134,7 @@ Public service health aggregation
 
 ## Errors
 
-Most runtime errors use `{"error": {"type", "code", "retryable"}}`. Official SDKs do not auto-retry — honor `retryable` and `Retry-After`.
+Most runtime errors use `{"error": {"type", "code", "retryable"}}`. Official SDKs do not auto-retry — follow `retryable` and `Retry-After`.
 
 Admission 429 is `type: rate_limit_error`, `code: admission_rate_limited`, with `reason` (`rpm_per_key` | `concurrency_per_key` | `concurrency_per_tenant` | `concurrency_global`) and `scope` (`key` | `tenant` | `global`). Pass refuses immediately; the call is not queued. Per-key RPM defaults to 600. In-flight concurrency is a separate limit; a streaming call holds a slot until the stream ends.
 
