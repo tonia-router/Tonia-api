@@ -99,6 +99,12 @@ def render(spec: dict) -> str:
         "",
         "Monthly quota 429 is `type: entitlement_error`, "
         "`code: request_quota_exhausted` (`retryable: true`). "
+        "Included-model token quota is 429 "
+        "`campaign_token_quota_exhausted` (retryable, exact "
+        "`Retry-After`). Per-request campaign cap is 400 "
+        "`campaign_token_per_request_exceeded`. Campaign inclusion "
+        "exhausted is 503 `campaign_cogs_ceiling_exhausted` "
+        "(operator scope, not automatically retryable). "
         "Budget exhaustion is 402 `entitlement_error` and is not "
         "retryable. `api_error` / `audit_tip_contention` is 503 "
         "with `Retry-After: 1`. "

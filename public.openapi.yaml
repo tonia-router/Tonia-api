@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: tonia Pass API
-  version: 0.2.1
+  version: 0.3.0
   summary: OpenAPI contract for the official tonia Pass SDKs.
   description: |
     Developer API for Pass (`https://pass.tonia.ca:8443`).
@@ -10,14 +10,15 @@ info:
     - `public` — unauthenticated catalogue / models / status
     - `runtime` — `tonia_*` Bearer or `x-api-key` (Bearer wins if both)
 
-    Chat, messages, embeddings, images, responses, rerank, and interactions
-    request bodies stay upstream-shaped. Official SDKs add auth, base URL,
-    typed errors, and named helpers.
+    Chat, messages, embeddings, images, audio (speech + transcriptions),
+    responses, rerank, and interactions request bodies stay upstream-shaped.
+    Official SDKs add auth, base URL, typed errors, and named helpers.
+    Gemini token TTS/STT uses `/v1/interactions`, not `/v1/audio/*`.
 
     **Supported path prefixes** for raw SDK requests:
     `/v1/public/`, `/v1/status`, `/v1/models`,
     `/v1/chat/`, `/v1/messages`, `/v1/embeddings`, `/v1/images/`,
-    `/v1/responses`, `/v1/rerank`, `/v1/interactions`.
+    `/v1/audio/`, `/v1/responses`, `/v1/rerank`, `/v1/interactions`.
     Other paths are not supported.
 
     Workspace settings, billing, member invites, and API-key management
@@ -32,7 +33,12 @@ info:
     concurrency is a separate limit; a streaming call holds a slot until the
     stream ends. Monthly quota 429 is `entitlement_error` /
     `request_quota_exhausted`. Budget exhaustion is 402 `entitlement_error`
-    and is not retryable.
+    and is not retryable. Included-model (campaign) token quota is 429
+    `entitlement_error` / `campaign_token_quota_exhausted` (retryable,
+    exact `Retry-After`). A per-request campaign cap is 400
+    `campaign_token_per_request_exceeded` (not retryable). Campaign
+    inclusion exhausted is 503 `campaign_cogs_ceiling_exhausted`
+    (operator scope, not automatically retryable).
 
     Server-side chat history (`/v1/conversations*`) is chat-app only and is
     not part of the public SDK contract.
@@ -456,6 +462,153 @@ paths:
                 $ref: '#/components/schemas/PassthroughResponse'
         default:
           $ref: '#/components/responses/RuntimeError'
+  /v1/audio/transcriptions:
+    post:
+      tags:
+      - runtime
+      operationId: audioTranscriptions
+      summary: OpenAI-shaped speech-to-text
+      description: 'multipart/form-data (`file` + `model`). Requires tenant
+
+        `audio_allowed`. Body cap is 16MB. Policy and entitlement denials
+
+        use hard HTTP status codes, not HTTP 200 bodies.
+
+        '
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PassthroughRequest'
+      responses:
+        '200':
+          description: Provider-native transcription JSON
+          headers:
+            x-tonia-limit-warning:
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassthroughResponse'
+        default:
+          $ref: '#/components/responses/RuntimeError'
+  /v1/audio/translations:
+    post:
+      tags:
+      - runtime
+      operationId: audioTranslations
+      summary: OpenAI-shaped audio translations
+      description: 'Same family as `/v1/audio/transcriptions`. Requires tenant
+
+        `audio_allowed`. Policy and entitlement denials use hard HTTP.
+
+        '
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PassthroughRequest'
+      responses:
+        '200':
+          description: Provider-native translation JSON
+          headers:
+            x-tonia-limit-warning:
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassthroughResponse'
+        default:
+          $ref: '#/components/responses/RuntimeError'
+  /v1/audio/speech:
+    post:
+      tags:
+      - runtime
+      operationId: audioSpeech
+      summary: OpenAI-shaped text-to-speech
+      description: 'JSON `input` → `audio/*` bytes. Requires tenant `audio_allowed`.
+
+        Policy and entitlement denials use hard HTTP status codes.
+
+        '
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/HttpReferer'
+      - $ref: '#/components/parameters/XToniaTitle'
+      - $ref: '#/components/parameters/XToniaCategories'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassthroughRequest'
+      responses:
+        '200':
+          description: Provider-native audio bytes
+          headers:
+            x-tonia-limit-warning:
+              $ref: '#/components/headers/XToniaLimitWarning'
+            x-tonia-limit-scope:
+              $ref: '#/components/headers/XToniaLimitScope'
+            x-tonia-limit-kind:
+              $ref: '#/components/headers/XToniaLimitKind'
+            x-tonia-limit-used:
+              $ref: '#/components/headers/XToniaLimitUsed'
+            x-tonia-limit-value:
+              $ref: '#/components/headers/XToniaLimitValue'
+            x-tonia-limit-remaining:
+              $ref: '#/components/headers/XToniaLimitRemaining'
+            x-tonia-limit-period-ends-at:
+              $ref: '#/components/headers/XToniaLimitPeriodEndsAt'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/RuntimeError'
   /v1/responses:
     post:
       tags:
@@ -723,7 +876,13 @@ components:
 
         `code: request_quota_exhausted`. Budget exhaustion is 402 `entitlement_error`
 
-        and is not retryable.
+        and is not retryable. Campaign token quota is 429 `campaign_token_quota_exhausted`
+
+        (retryable, exact `Retry-After`). Campaign per-request cap is 400
+
+        `campaign_token_per_request_exceeded`. Campaign inclusion exhausted is 503
+
+        `campaign_cogs_ceiling_exhausted` (operator scope, not automatically retryable).
 
         '
       headers:
@@ -852,10 +1011,8 @@ components:
       - label
       - credential_mode
       - public
-      - trial
       - entitlement_template
       - components
-      - discounts
       properties:
         offer_id:
           type: string
@@ -869,9 +1026,6 @@ components:
           type: string
         public:
           type: boolean
-        trial:
-          type: object
-          additionalProperties: true
         entitlement_template:
           $ref: '#/components/schemas/EntitlementTemplate'
         components:
@@ -879,9 +1033,6 @@ components:
           items:
             type: object
             additionalProperties: true
-        discounts:
-          type: object
-          additionalProperties: true
         managed_credit_topup_amounts_cad_cents:
           type: array
           items:

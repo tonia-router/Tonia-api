@@ -5,7 +5,8 @@ Public OpenAPI 3.1 contract for [tonia Pass](https://pass.tonia.ca).
 `public.openapi.yaml` is the source of truth for the official SDKs and for
 `API.md`. It covers the developer API only: unauthenticated catalogue /
 models / status, plus authenticated runtime helpers (chat, messages,
-embeddings, images, responses, rerank, interactions).
+embeddings, images, audio speech / transcriptions, responses, rerank,
+interactions). Gemini token TTS/STT is `/v1/interactions`, not `/v1/audio/*`.
 
 Workspace settings, billing, and API-key management stay in the
 [tonia portal](https://portal.tonia.ca). Server-side chat history is
