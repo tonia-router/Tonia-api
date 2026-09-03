@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: tonia Pass API
-  version: 0.3.0
+  version: 0.2.1
   summary: OpenAPI contract for the official tonia Pass SDKs.
   description: |
     Developer API for Pass (`https://pass.tonia.ca:8443`).
@@ -10,10 +10,9 @@ info:
     - `public` — unauthenticated catalogue / models / status
     - `runtime` — `tonia_*` Bearer or `x-api-key` (Bearer wins if both)
 
-    Chat, messages, embeddings, images, audio (speech + transcriptions),
-    responses, rerank, and interactions request bodies stay upstream-shaped.
-    Official SDKs add auth, base URL, typed errors, and named helpers.
-    Gemini token TTS/STT uses `/v1/interactions`, not `/v1/audio/*`.
+    Chat, messages, embeddings, images, responses, rerank, and interactions
+    request bodies stay upstream-shaped. Official SDKs add auth, base URL,
+    typed errors, and named helpers.
 
     **Supported path prefixes** for raw SDK requests:
     `/v1/public/`, `/v1/status`, `/v1/models`,
@@ -361,7 +360,7 @@ paths:
       - runtime
       operationId: imagesGenerate
       summary: OpenAI-shaped image generations
-      description: 'openai / xAI / StepFun only. Gemini image SKUs return HTTP 400
+      description: 'openai / xAI / Meta / Alibaba. Gemini image SKUs return HTTP 400
 
         `provider_requires_surface` (`required_surface: interactions`) — use
 
@@ -413,7 +412,7 @@ paths:
       - runtime
       operationId: imagesEdit
       summary: OpenAI-shaped image edits
-      description: 'openai / xAI / StepFun only. Pass may rebuild JSON→multipart
+      description: 'openai / xAI / Meta. Alibaba is generate-only. Pass may rebuild JSON→multipart
 
         before upstream. Gemini image SKUs return HTTP 400 `provider_requires_surface`
 
@@ -1063,6 +1062,7 @@ components:
       - channel
       - pricing
       - status_component
+      - surface
       properties:
         id:
           type: string
@@ -1108,6 +1108,8 @@ components:
             type: string
         channel:
           $ref: '#/components/schemas/PublicChannel'
+        surface:
+          $ref: '#/components/schemas/CustomerSurface'
         status_component:
           type: string
         reasoning:
@@ -1277,6 +1279,50 @@ components:
           type: object
           additionalProperties: true
           description: Present for managed-priced models only
+        surface:
+          $ref: '#/components/schemas/CustomerSurface'
+    CustomerSurface:
+      type: object
+      required:
+      - family
+      - path
+      - sdk
+      - body
+      - edit_path
+      properties:
+        family:
+          type: string
+          enum:
+          - text
+          - image
+          - speech
+          - transcription
+        path:
+          type: string
+          description: Tenant Pass path. Never a lab URL.
+        sdk:
+          type: string
+          enum:
+          - chat.completions.create
+          - images.generate
+          - audio.speech.create
+          - audio.transcriptions.create
+          - interactions.create
+        body:
+          type: string
+          enum:
+          - chat_messages
+          - prompt
+          - input_voice
+          - multipart_file
+          - interactions_input
+        edit_path:
+          type:
+          - string
+          - 'null'
+          description: >
+            Image edit tenant path when `image_edit` is in capabilities;
+            otherwise null. Alibaba generate-only stays null.
     PassthroughRequest:
       type: object
       description: 'Upstream-shaped request body. Not re-typed by tonia. May include

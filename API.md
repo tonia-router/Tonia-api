@@ -49,7 +49,7 @@ OpenAI-shaped chat completions
 
 - Tag: `runtime`
 - Auth: required
-- Upstream-shaped body. Prefer `Authorization: Bearer`. HTTP 200 may still include `_tonia_policy_block` or `_tonia_entitlement_block` — treat those as errors. Soft-limit headers `x-tonia-limit-*` may appear on success. Top-level `reasoning_effort` is accepted when present; Pass clamps it to the model's declared set.
+- Upstream-shaped body. Prefer `Authorization: Bearer`. HTTP 200 may still include `_tonia_policy_block` or `_tonia_entitlement_block` — treat those as errors. Soft-limit headers `x-tonia-limit-*` may appear on success. Top-level `reasoning_effort` is accepted when present; Pass clamps it to the model's declared set. Dedicated TTS/STT, Gemini token audio, and image SKUs on this path (or `POST /v1/responses`) return HTTP 400 `provider_requires_surface` (`required_surface` is the tenant path). Spoken chat (`gpt-audio-*`) stays here.
 
 ### `POST /v1/embeddings`
 
@@ -64,7 +64,7 @@ OpenAI-shaped image edits
 
 - Tag: `runtime`
 - Auth: required
-- openai / xAI / StepFun only. Pass may rebuild JSON→multipart before upstream. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions` with multimodal `input` parts. Policy/entitlement denials are always hard HTTP.
+- openai / xAI / Meta. Alibaba is generate-only. Pass may rebuild JSON→multipart before upstream. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions` with multimodal `input` parts. Policy/entitlement denials are always hard HTTP.
 
 ### `POST /v1/images/generations`
 
@@ -72,7 +72,7 @@ OpenAI-shaped image generations
 
 - Tag: `runtime`
 - Auth: required
-- openai / xAI / StepFun only. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions`. Policy and entitlement denials use hard HTTP status codes, not HTTP 200 bodies.
+- openai / xAI / Meta / Alibaba. Gemini image SKUs return HTTP 400 `provider_requires_surface` (`required_surface: interactions`) — use `POST /v1/interactions`. Policy and entitlement denials use hard HTTP status codes, not HTTP 200 bodies.
 
 ### `POST /v1/interactions`
 
