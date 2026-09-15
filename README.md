@@ -39,7 +39,9 @@ python render_api_reference.py
 - [`typescript-sdk`](https://github.com/tonia-router/typescript-sdk) → `@tonia-router/sdk`
 - [`python-sdk`](https://github.com/tonia-router/python-sdk) → `tonia`
 
-A Rust client is planned and is not published yet.
+A Rust client (`tonia-sdk` **0.4.1**) is on
+[`github.com/tonia-router/rust-sdk`](https://github.com/tonia-router/rust-sdk)
+(`main`, tag `v0.4.1`). It is not on crates.io yet.
 
 ## Authentication
 
